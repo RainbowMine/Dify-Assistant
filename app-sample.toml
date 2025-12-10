@@ -1,0 +1,9 @@
+[servers.dev]
+base_url = "https://dify-dev.example.com/"
+email = "admin"
+password = "Password"
+
+[servers.prod]
+base_url = "https://dify-prod.example.com/"
+email = "admin"
+password = "Password"
