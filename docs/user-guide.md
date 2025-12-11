@@ -2,14 +2,12 @@
 
 ## Installation
 
-```bash
-pip install dify-assistant
-```
-
-Or with uv:
+Clone the repository and install dependencies:
 
 ```bash
-uv add dify-assistant
+git clone <repository-url>
+cd dify-assistant
+uv sync
 ```
 
 ## Configuration
@@ -229,7 +227,7 @@ Export from source server and import to target server:
 dify app export -s dev -o ./migration/
 
 # Import to prod with a migration tag
-dify app import -s prod ./migration/ --tag migrated-from-dev
+dify app import -s prod -i ./migration/ --tag migrated-from-dev
 ```
 
 ### Backup Apps by Tag
@@ -246,8 +244,8 @@ dify app export -s prod -t staging -o ./backup/staging/
 
 ```bash
 # Import apps and tag them for organization
-dify app import -s prod ./new-features/ --tag feature-release-v2
-dify app import -s prod ./hotfixes/ --tag hotfix-2024-01
+dify app import -s prod -i ./new-features/ --tag feature-release-v2
+dify app import -s prod -i ./hotfixes/ --tag hotfix-2024-01
 ```
 
 ### Clean Up Old Apps
@@ -272,7 +270,7 @@ dify app export -s prod -t my-feature -o ./backup/
 dify app delete -s prod -t my-feature -y
 
 # Import updated versions
-dify app import -s prod ./updated/ -t my-feature
+dify app import -s prod -i ./updated/ -t my-feature
 ```
 
 ### Use Custom Config File
@@ -370,7 +368,7 @@ dify plugin export -s dev -o plugins.json --with-config
 Import and install plugins to a server from an export file:
 
 ```bash
-dify plugin import -s <server> [-i <file>] [--latest] [--with-config] [--skip-existing]
+dify plugin import -s <server> [-i <file>] [--latest] [--with-config] [--no-skip-existing]
 ```
 
 **Options:**
@@ -381,30 +379,69 @@ dify plugin import -s <server> [-i <file>] [--latest] [--with-config] [--skip-ex
 | `--input` | `-i` | Input file path (default: stdin) |
 | `--latest` | | Install latest version instead of exported version |
 | `--with-config` | | Apply plugin configurations (export must include config) |
-| `--skip-existing` | | Skip already installed plugins |
+| `--skip-existing/--no-skip-existing` | | Skip already installed plugins (default: enabled) |
+| `--parallel/--serial` | `-p/-P` | Enable/disable parallel install (default: parallel) |
+| `--concurrency` | `-c` | Max concurrent requests (default: 3, marketplace limit) |
 
-By default, installs the exact version from the export file.
+By default, installs the exact version from the export file and skips already installed plugins.
 
 **Examples:**
 
 ```bash
-# Import from file
+# Import from file (skips already installed by default)
 dify plugin import -s prod -i plugins.json
 
 # Import from stdin (pipe)
 dify plugin export -s dev | dify plugin import -s prod
 
-# Install latest versions
+# Install latest versions from marketplace
 dify plugin import -s prod -i plugins.json --latest
 
 # Apply configurations
 dify plugin import -s prod -i plugins.json --with-config
 
-# Skip already installed plugins
-dify plugin import -s prod -i plugins.json --skip-existing
+# Force reinstall (don't skip existing)
+dify plugin import -s prod -i plugins.json --no-skip-existing
 
 # Combined options
-dify plugin import -s prod -i plugins.json --latest --skip-existing
+dify plugin import -s prod -i plugins.json --latest --serial
+```
+
+### Upgrade Plugins
+
+Upgrade installed plugins to their latest versions from marketplace:
+
+```bash
+dify plugin upgrade -s <server> [-n <name>] [--dry-run] [-p|-P] [-c <n>]
+```
+
+**Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--server` | `-s` | Server name (required) |
+| `--name` | `-n` | Plugin names to upgrade (can be repeated, default: all) |
+| `--dry-run` | | Preview upgrades without making changes |
+| `--parallel/--serial` | `-p/-P` | Enable/disable parallel upgrade (default: parallel) |
+| `--concurrency` | `-c` | Max concurrent requests (default: 3, marketplace limit) |
+
+By default upgrades all installed marketplace plugins. GitHub plugins cannot be upgraded automatically.
+
+**Examples:**
+
+```bash
+# Preview what would be upgraded
+dify plugin upgrade -s prod --dry-run
+
+# Upgrade all plugins
+dify plugin upgrade -s prod
+
+# Upgrade specific plugins
+dify plugin upgrade -s prod -n langgenius/openai
+dify plugin upgrade -s prod -n langgenius/openai -n langgenius/anthropic
+
+# Upgrade with serial mode
+dify plugin upgrade -s prod --serial
 ```
 
 ## Plugin Workflows
@@ -420,14 +457,35 @@ dify plugin import -s prod -i plugins.json
 
 # Method 2: Using pipe (direct transfer)
 dify plugin export -s dev | dify plugin import -s prod
+
+# Method 3: Migrate with latest versions
+dify plugin export -s dev -o plugins.json
+dify plugin import -s prod -i plugins.json --latest
+```
+
+### Upgrade All Plugins to Latest
+
+```bash
+# Preview upgrades first
+dify plugin upgrade -s prod --dry-run
+
+# Apply upgrades
+dify plugin upgrade -s prod
+```
+
+### Upgrade Specific Plugins
+
+```bash
+# Upgrade only selected plugins
+dify plugin upgrade -s prod -n langgenius/openai -n langgenius/anthropic
 ```
 
 ### Sync Plugins with Latest Versions
 
 ```bash
-# Export current plugins and import latest versions
+# Export current plugins and import latest versions to another server
 dify plugin export -s dev -o plugins.json
-dify plugin import -s prod -i plugins.json --latest --skip-existing
+dify plugin import -s prod -i plugins.json --latest
 ```
 
 ### Backup and Restore Plugin Configurations

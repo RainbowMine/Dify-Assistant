@@ -33,7 +33,8 @@ dify
 └── plugin
     ├── list      # List installed plugins
     ├── export    # Export plugin list to JSON
-    └── import    # Import and install plugins from JSON
+    ├── import    # Import and install plugins from JSON
+    └── upgrade   # Upgrade plugins to latest versions
 ```
 
 ## Global Options
@@ -161,7 +162,7 @@ Export format:
 Import and install plugins from JSON file.
 
 ```bash
-dify plugin import -s <server> [-i <file>] [--latest] [--with-config] [--skip-existing]
+dify plugin import -s <server> [-i <file>] [--latest] [--with-config] [--no-skip-existing] [-p|-P] [-c <n>]
 ```
 
 | Option | Short | Description |
@@ -170,7 +171,25 @@ dify plugin import -s <server> [-i <file>] [--latest] [--with-config] [--skip-ex
 | `--input` | `-i` | Input file (default: stdin) |
 | `--latest` | | Install latest version instead of exported version |
 | `--with-config` | | Apply plugin configurations |
-| `--skip-existing` | | Skip already installed plugins |
+| `--skip-existing/--no-skip-existing` | | Skip already installed plugins (default: enabled) |
+| `--parallel/--serial` | `-p/-P` | Parallel or serial import (default: parallel) |
+| `--concurrency` | `-c` | Max concurrent requests (default: 3) |
+
+### dify plugin upgrade
+
+Upgrade installed plugins to latest versions.
+
+```bash
+dify plugin upgrade -s <server> [-n <name>] [--dry-run] [-p|-P] [-c <n>]
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--server` | `-s` | Server name (required) |
+| `--name` | `-n` | Plugin names to upgrade (can be repeated) |
+| `--dry-run` | | Preview upgrades without making changes |
+| `--parallel/--serial` | `-p/-P` | Parallel or serial upgrade (default: parallel) |
+| `--concurrency` | `-c` | Max concurrent requests (default: 3) |
 
 ## Authentication
 

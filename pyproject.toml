@@ -2,7 +2,7 @@
 authors = [{ name = "webclerk", email = "webclerk@gmail.com" }]
 maintainers = [{ name = "webclerk", email = "webclerk@gmail.com" }]
 name = "dify-assistant"
-version = "2025.1.1.20251210"
+version = "2025.1.2.20251211"
 description = "Dify Assistant"
 keywords = ["Dify"]
 

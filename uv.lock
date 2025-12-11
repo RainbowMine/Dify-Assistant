@@ -281,7 +281,7 @@ wheels = [
 
 [[package]]
 name = "dify-assistant"
-version = "2025.1.1.20251210"
+version = "2025.1.2.20251211"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

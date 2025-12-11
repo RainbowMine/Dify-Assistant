@@ -25,5 +25,8 @@ DEFAULT_PAGE_LIMIT = 100
 DEFAULT_MAX_CONCURRENCY = 5
 CLI_DEFAULT_CONCURRENCY = 16
 
+# Plugin marketplace concurrency (API limit is 3)
+PLUGIN_MARKETPLACE_CONCURRENCY = 3
+
 # Default config file path
 DEFAULT_CONFIG_FILE = "app.toml"

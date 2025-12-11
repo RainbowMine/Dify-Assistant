@@ -535,3 +535,152 @@ class AsyncConsoleClient:
         tasks = [delete_single(app_id) for app_id in app_ids]
         results = await asyncio.gather(*tasks)
         return list(results)
+
+    # === Plugin Operations ===
+
+    async def get_plugins(self) -> list[dict[str, Any]]:
+        """
+        Get all installed plugins.
+
+        Returns:
+            List of plugin dictionaries
+        """
+        logger.debug("Getting plugins")
+        data = await self._request("GET", "/console/api/workspaces/current/plugin/list")
+        plugins = data.get("plugins", [])
+        return list(plugins)
+
+    async def install_plugin_from_marketplace(self, plugin_unique_identifiers: list[str]) -> dict[str, Any]:
+        """
+        Install plugins from marketplace.
+
+        Args:
+            plugin_unique_identifiers: List of plugin unique identifiers (e.g., ["langgenius/openai:1.2.0"])
+
+        Returns:
+            Installation task info
+        """
+        logger.debug("Installing plugins from marketplace: {}", plugin_unique_identifiers)
+        payload = {"plugin_unique_identifiers": plugin_unique_identifiers}
+        return dict(
+            await self._request("POST", "/console/api/workspaces/current/plugin/install/marketplace", json=payload)
+        )
+
+    async def install_plugin_from_github(
+        self,
+        plugin_unique_identifier: str,
+        repo: str,
+        version: str,
+        package: str,
+    ) -> dict[str, Any]:
+        """
+        Install plugin from GitHub.
+
+        Args:
+            plugin_unique_identifier: Plugin unique identifier
+            repo: GitHub repository (e.g., "org/repo")
+            version: Version/tag to install
+            package: Package path
+
+        Returns:
+            Installation task info
+        """
+        logger.debug("Installing plugin from GitHub: {} ({}@{})", plugin_unique_identifier, repo, version)
+        payload = {
+            "plugin_unique_identifier": plugin_unique_identifier,
+            "repo": repo,
+            "version": version,
+            "package": package,
+        }
+        return dict(await self._request("POST", "/console/api/workspaces/current/plugin/install/github", json=payload))
+
+    async def uninstall_plugin(self, plugin_installation_id: str) -> dict[str, Any]:
+        """
+        Uninstall a plugin.
+
+        Args:
+            plugin_installation_id: Plugin installation ID
+
+        Returns:
+            Uninstall result
+        """
+        logger.debug("Uninstalling plugin: {}", plugin_installation_id)
+        payload = {"plugin_installation_id": plugin_installation_id}
+        result = dict(await self._request("POST", "/console/api/workspaces/current/plugin/uninstall", json=payload))
+        logger.info("Uninstalled plugin: {}", plugin_installation_id)
+        return result
+
+    async def install_plugins_parallel(
+        self,
+        plugins_to_install: list[dict[str, Any]],
+    ) -> list[tuple[str, bool, Optional[Exception]]]:
+        """
+        Install multiple plugins in parallel.
+
+        Args:
+            plugins_to_install: List of plugin dicts with keys:
+                - name: Plugin name
+                - plugin_unique_identifier: Full identifier with version
+                - source: "marketplace" or "github"
+                - github: (optional) GitHub info dict
+
+        Returns:
+            List of tuples: (plugin_name, success, exception or None)
+        """
+        logger.info(
+            "Installing {} plugins in parallel (max_concurrency={})", len(plugins_to_install), self.max_concurrency
+        )
+
+        async def install_single(plugin: dict[str, Any]) -> tuple[str, bool, Optional[Exception]]:
+            name = plugin.get("name", "")
+            plugin_id = plugin.get("plugin_unique_identifier", name)
+            source = plugin.get("source", "marketplace")
+
+            try:
+                if source == "github" and "github" in plugin:
+                    github_info = plugin["github"]
+                    await self.install_plugin_from_github(
+                        plugin_unique_identifier=plugin_id,
+                        repo=github_info.get("repo", ""),
+                        version=github_info.get("version", ""),
+                        package=github_info.get("package", ""),
+                    )
+                else:
+                    await self.install_plugin_from_marketplace([plugin_id])
+                return (name, True, None)
+            except Exception as e:
+                logger.error("Failed to install plugin {}: {}", name, e)
+                return (name, False, e)
+
+        tasks = [install_single(plugin) for plugin in plugins_to_install]
+        results = await asyncio.gather(*tasks)
+        return list(results)
+
+    async def uninstall_plugins_parallel(
+        self,
+        installation_ids: list[str],
+    ) -> list[tuple[str, bool, Optional[Exception]]]:
+        """
+        Uninstall multiple plugins in parallel.
+
+        Args:
+            installation_ids: List of plugin installation IDs
+
+        Returns:
+            List of tuples: (installation_id, success, exception or None)
+        """
+        logger.info(
+            "Uninstalling {} plugins in parallel (max_concurrency={})", len(installation_ids), self.max_concurrency
+        )
+
+        async def uninstall_single(installation_id: str) -> tuple[str, bool, Optional[Exception]]:
+            try:
+                await self.uninstall_plugin(installation_id)
+                return (installation_id, True, None)
+            except Exception as e:
+                logger.error("Failed to uninstall plugin {}: {}", installation_id, e)
+                return (installation_id, False, e)
+
+        tasks = [uninstall_single(iid) for iid in installation_ids]
+        results = await asyncio.gather(*tasks)
+        return list(results)
